@@ -21,7 +21,4 @@ def main(argv: Sequence[str] | None = None) -> int:
         logger.error("%s", error)
         return 1
 
-    sys.stdout.write(f"{format_decimal_output(result.report_totals.last_row_total)}\n")
-    sys.stdout.write(f"{format_decimal_output(result.report_totals.data_rows_total)}\n")
-
     return 0
