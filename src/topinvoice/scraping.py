@@ -39,6 +39,8 @@ SUBMIT_SELECTORS = (
 
 
 class ElementLike(Protocol):
+    """Protocol describing element interactions used by the scraper."""
+
     def wait_for(self, *, state: str, timeout: int) -> None: ...
 
     def fill(self, value: str) -> None: ...
@@ -53,6 +55,8 @@ class ElementLike(Protocol):
 
 
 class LocatorLike(ElementLike, Protocol):
+    """Protocol describing locator operations used by the scraper."""
+
     first: Self
 
     def count(self) -> int: ...
@@ -67,14 +71,20 @@ class LocatorLike(ElementLike, Protocol):
 
 
 class KeyboardLike(Protocol):
+    """Protocol for keyboard interactions on the page."""
+
     def press(self, key: str) -> None: ...
 
 
 class DownloadLike(Protocol):
+    """Protocol for downloaded browser artifacts."""
+
     def save_as(self, path: str) -> None: ...
 
 
 class DownloadContextLike(Protocol):
+    """Protocol for Playwright download context managers."""
+
     value: DownloadLike
 
     def __enter__(self) -> Self: ...
@@ -83,6 +93,8 @@ class DownloadContextLike(Protocol):
 
 
 class PageLike(Protocol):
+    """Protocol for the subset of page APIs used by the scraper."""
+
     keyboard: KeyboardLike
     url: str
 
@@ -102,32 +114,51 @@ class PageLike(Protocol):
 
 
 class BrowserContextLike(Protocol):
+    """Protocol for browser contexts with download support."""
+
     def new_page(self) -> PageLike: ...
 
     def close(self) -> None: ...
 
 
 class BrowserLike(Protocol):
+    """Protocol for browser instances used by the scraper."""
+
     def new_context(self, *, accept_downloads: bool) -> BrowserContextLike: ...
 
     def close(self) -> None: ...
 
 
 class ChromiumLike(Protocol):
+    """Protocol for Chromium launcher access."""
+
     def launch(self, **kwargs: object) -> BrowserLike: ...
 
 
 class PlaywrightLike(Protocol):
+    """Protocol for the Playwright root object."""
+
     chromium: ChromiumLike
 
 
 class PlaywrightContextManagerLike(Protocol):
+    """Protocol for the `sync_playwright()` context manager."""
+
     def __enter__(self) -> PlaywrightLike: ...
 
     def __exit__(self, exc_type: object, exc: object, traceback: object) -> bool | None: ...
 
 
 def get_playwright_error_type() -> type[Exception]:
+    """Return the Playwright error type used for browser interaction failures.
+
+    Returns:
+        Playwright exception class.
+
+    Raises:
+        ScrapingError: If Playwright is not installed in the current
+            environment.
+    """
     try:
         from playwright.sync_api import Error as PlaywrightError
     except ModuleNotFoundError as error:
@@ -136,6 +167,15 @@ def get_playwright_error_type() -> type[Exception]:
 
 
 def ensure_playwright_available() -> Callable[[], PlaywrightContextManagerLike]:
+    """Return the synchronous Playwright context manager factory.
+
+    Returns:
+        Callable that creates a Playwright context manager.
+
+    Raises:
+        ScrapingError: If Playwright is not installed in the current
+            environment.
+    """
     try:
         from playwright.sync_api import sync_playwright
     except ModuleNotFoundError as error:
@@ -145,6 +185,15 @@ def ensure_playwright_available() -> Callable[[], PlaywrightContextManagerLike]:
 
 
 def wait_for_first(locator: LocatorLike, timeout_ms: int) -> LocatorLike:
+    """Wait for the first locator match to become visible.
+
+    Args:
+        locator: Locator to resolve.
+        timeout_ms: Visibility timeout in milliseconds.
+
+    Returns:
+        Locator pointing at the first visible match.
+    """
     target = locator.first
     target.wait_for(state="visible", timeout=timeout_ms)
 
@@ -152,6 +201,18 @@ def wait_for_first(locator: LocatorLike, timeout_ms: int) -> LocatorLike:
 
 
 def first_visible(locator: LocatorLike, timeout_ms: int) -> ElementLike:
+    """Return the first visible element from a locator collection.
+
+    Args:
+        locator: Locator that may resolve to multiple candidates.
+        timeout_ms: Visibility timeout in milliseconds.
+
+    Returns:
+        First visible element.
+
+    Raises:
+        ScrapingError: If no visible candidate can be found.
+    """
     playwright_error = get_playwright_error_type()
     errors: list[str] = []
     for index in range(locator.count()):
@@ -166,6 +227,18 @@ def first_visible(locator: LocatorLike, timeout_ms: int) -> ElementLike:
 
 
 def fill_first(page: PageLike, selectors: tuple[str, ...], value: str, timeout_ms: int, field_name: str) -> None:
+    """Fill the first visible field that matches the provided selectors.
+
+    Args:
+        page: Browser page used for lookups.
+        selectors: Candidate selectors checked in order.
+        value: Value to type into the field.
+        timeout_ms: Timeout in milliseconds.
+        field_name: Human-readable field name used in error messages.
+
+    Raises:
+        ScrapingError: If no matching field can be filled.
+    """
     playwright_error = get_playwright_error_type()
     errors: list[str] = []
     for selector in selectors:
@@ -180,6 +253,17 @@ def fill_first(page: PageLike, selectors: tuple[str, ...], value: str, timeout_m
 
 
 def click_first(page: PageLike, selectors: tuple[str, ...], timeout_ms: int, element_name: str) -> None:
+    """Click the first visible element that matches the provided selectors.
+
+    Args:
+        page: Browser page used for lookups.
+        selectors: Candidate selectors checked in order.
+        timeout_ms: Timeout in milliseconds.
+        element_name: Human-readable element name used in error messages.
+
+    Raises:
+        ScrapingError: If no matching element can be clicked.
+    """
     playwright_error = get_playwright_error_type()
     errors: list[str] = []
     for selector in selectors:
@@ -194,6 +278,13 @@ def click_first(page: PageLike, selectors: tuple[str, ...], timeout_ms: int, ele
 
 
 def login_if_needed(page: PageLike, config: Config, timeout_ms: int) -> None:
+    """Authenticate in GuestSage when the session is not already logged in.
+
+    Args:
+        page: Browser page used for the session.
+        config: GuestSage credentials.
+        timeout_ms: Timeout in milliseconds for page interactions.
+    """
     page.goto(SCHEDULE_URL, wait_until="domcontentloaded")
     page.wait_for_load_state("networkidle", timeout=timeout_ms)
     if page.locator("input[type='password']").count() == 0:
@@ -211,6 +302,16 @@ def login_if_needed(page: PageLike, config: Config, timeout_ms: int) -> None:
 
 
 def click_dropdown_option(page: PageLike, option_text: str, timeout_ms: int) -> None:
+    """Click a dropdown option by visible text.
+
+    Args:
+        page: Browser page used for lookups.
+        option_text: Visible label of the option to select.
+        timeout_ms: Timeout in milliseconds.
+
+    Raises:
+        ScrapingError: If the option cannot be found.
+    """
     playwright_error = get_playwright_error_type()
     candidates = (
         page.get_by_role("option", name=option_text, exact=True),
@@ -228,6 +329,17 @@ def click_dropdown_option(page: PageLike, option_text: str, timeout_ms: int) -> 
 
 
 def select_value_by_label(page: PageLike, label_text: str, option_text: str, timeout_ms: int) -> None:
+    """Select a form value by locating its associated label.
+
+    Args:
+        page: Browser page used for lookups.
+        label_text: Visible label text of the target field.
+        option_text: Visible option text to select.
+        timeout_ms: Timeout in milliseconds.
+
+    Raises:
+        ScrapingError: If the field or option cannot be selected.
+    """
     playwright_error = get_playwright_error_type()
     native_selectors = (
         f"xpath=//*[normalize-space()='{label_text}']/following::*[self::select][1]",
@@ -262,6 +374,15 @@ def select_value_by_label(page: PageLike, label_text: str, option_text: str, tim
 
 
 def open_monthly_report_section(page: PageLike, timeout_ms: int) -> LocatorLike:
+    """Open or locate the monthly report section on the GuestSage page.
+
+    Args:
+        page: Browser page used for lookups.
+        timeout_ms: Timeout in milliseconds.
+
+    Returns:
+        Locator pointing at the monthly report section.
+    """
     section = page.locator(
         "xpath=//*[normalize-space()='Monthly report']/ancestor::div"
         "[.//*[contains(normalize-space(), 'Export to CSV')]][1]",
@@ -271,6 +392,16 @@ def open_monthly_report_section(page: PageLike, timeout_ms: int) -> LocatorLike:
 
 
 def select_month_tab(page: PageLike, month_label: str, timeout_ms: int) -> None:
+    """Select the month tab inside the monthly report section.
+
+    Args:
+        page: Browser page used for lookups.
+        month_label: GuestSage label for the target month.
+        timeout_ms: Timeout in milliseconds.
+
+    Raises:
+        ScrapingError: If the month tab cannot be selected.
+    """
     playwright_error = get_playwright_error_type()
     section = open_monthly_report_section(page, timeout_ms)
     candidates = (
@@ -290,6 +421,17 @@ def select_month_tab(page: PageLike, month_label: str, timeout_ms: int) -> None:
 
 
 def export_csv(page: PageLike, period: Period, downloads_dir: Path, timeout_ms: int) -> Path:
+    """Export the monthly CSV report to the requested directory.
+
+    Args:
+        page: Browser page used for the export action.
+        period: Billing period being exported.
+        downloads_dir: Output directory for the downloaded file.
+        timeout_ms: Timeout in milliseconds.
+
+    Returns:
+        Path to the saved CSV file.
+    """
     downloads_dir.mkdir(parents=True, exist_ok=True)
     section = open_monthly_report_section(page, timeout_ms)
     export_button = section.get_by_role("button", name="Export to CSV", exact=True).first
@@ -303,6 +445,18 @@ def export_csv(page: PageLike, period: Period, downloads_dir: Path, timeout_ms: 
 
 
 def launch_browser(playwright: PlaywrightLike, headless: bool) -> BrowserLike:
+    """Launch a browser suitable for Playwright scraping.
+
+    Args:
+        playwright: Playwright root object.
+        headless: Whether the browser should run in headless mode.
+
+    Returns:
+        Running browser instance.
+
+    Raises:
+        ScrapingError: If no supported browser can be launched.
+    """
     playwright_error = get_playwright_error_type()
     launch_errors: list[str] = []
 
@@ -329,6 +483,8 @@ def launch_browser(playwright: PlaywrightLike, headless: bool) -> BrowserLike:
 
 
 class GuestSageScraper:
+    """Scraper implementation that downloads monthly reports from GuestSage."""
+
     def export_monthly_report(
         self,
         period: Period,
@@ -337,6 +493,18 @@ class GuestSageScraper:
         headless: bool,
         timeout_ms: int,
     ) -> Path:
+        """Download the monthly GuestSage CSV report for a period.
+
+        Args:
+            period: Billing period to export.
+            downloads_dir: Directory where the CSV should be saved.
+            config: GuestSage credentials.
+            headless: Whether the browser should run in headless mode.
+            timeout_ms: Timeout in milliseconds for browser interactions.
+
+        Returns:
+            Path to the downloaded CSV file.
+        """
         sync_playwright = ensure_playwright_available()
         with sync_playwright() as playwright:
             browser = launch_browser(playwright, headless)

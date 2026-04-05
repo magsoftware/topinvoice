@@ -11,6 +11,8 @@ from topinvoice.scraping import GuestSageScraper
 
 
 class MonthlyReportScraper(Protocol):
+    """Protocol for components that download the monthly GuestSage report."""
+
     def export_monthly_report(
         self,
         period: Period,
@@ -23,10 +25,29 @@ class MonthlyReportScraper(Protocol):
 
 
 def resolve_pdf_output_path(options: CliOptions) -> Path:
+    """Resolve the final PDF output path.
+
+    Args:
+        options: CLI options for the current run.
+
+    Returns:
+        Explicit PDF path from the CLI or the default path derived from the
+        target period.
+    """
     return options.pdf_output if options.pdf_output is not None else options.period.default_invoice_path
 
 
 def run_pipeline(options: CliOptions, scraper: MonthlyReportScraper | None = None) -> PipelineResult:
+    """Run the full invoice generation pipeline.
+
+    Args:
+        options: CLI options for the current run.
+        scraper: Optional scraper implementation used for testing or custom
+            integrations.
+
+    Returns:
+        Generated CSV and PDF artifact paths together with parsed report totals.
+    """
     config = load_config(options.env_file)
     active_scraper = scraper or GuestSageScraper()
     csv_path = active_scraper.export_monthly_report(

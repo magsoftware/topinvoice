@@ -105,6 +105,8 @@ SCALE_FORMS = (
 
 
 class CanvasLike(Protocol):
+    """Protocol for the subset of canvas operations used by PDF rendering."""
+
     def setFont(self, psfontname: str, size: int) -> None: ...
 
     def drawString(self, x: float, y: float, text: str) -> None: ...
@@ -125,6 +127,8 @@ class CanvasLike(Protocol):
 
 
 class CanvasFactory(Protocol):
+    """Protocol for constructing ReportLab canvas instances."""
+
     def __call__(
         self,
         filename: str,
@@ -134,16 +138,29 @@ class CanvasFactory(Protocol):
 
 
 class PdfMetricsLike(Protocol):
+    """Protocol for ReportLab font registration APIs."""
+
     def getRegisteredFontNames(self) -> tuple[str, ...] | list[str]: ...
 
     def registerFont(self, font: object) -> None: ...
 
 
 class TTFontFactory(Protocol):
+    """Protocol for constructing TrueType font wrappers."""
+
     def __call__(self, name: str, filename: str) -> object: ...
 
 
 def ensure_reportlab_available() -> tuple[CanvasFactory, tuple[float, float], float, PdfMetricsLike, TTFontFactory]:
+    """Import and return the ReportLab objects used by PDF generation.
+
+    Returns:
+        Tuple containing the canvas factory, A4 page size, millimeter unit,
+        font registry, and TTF font factory.
+
+    Raises:
+        PdfGenerationError: If ReportLab is not installed.
+    """
     try:
         from reportlab.lib.pagesizes import A4
         from reportlab.lib.units import mm
@@ -158,6 +175,14 @@ def ensure_reportlab_available() -> tuple[CanvasFactory, tuple[float, float], fl
 
 
 def format_currency_pln(value: Decimal) -> str:
+    """Format a decimal amount as Polish currency text.
+
+    Args:
+        value: Monetary value to format.
+
+    Returns:
+        Currency string using Polish separators and `zł`.
+    """
     quantized = quantize_money(value)
     integral, fractional = f"{quantized:.2f}".split(".")
     groups: list[str] = []
@@ -169,10 +194,27 @@ def format_currency_pln(value: Decimal) -> str:
 
 
 def last_day_of_month(period: Period) -> date:
+    """Return the last calendar day of a billing period.
+
+    Args:
+        period: Billing period to evaluate.
+
+    Returns:
+        Last day of the given month.
+    """
     return date(period.year, period.month, calendar.monthrange(period.year, period.month)[1])
 
 
 def choose_plural_form(value: int, forms: tuple[str, str, str]) -> str:
+    """Choose the correct Polish plural form for a number.
+
+    Args:
+        value: Number that determines the plural form.
+        forms: Singular, paucal, and plural word variants.
+
+    Returns:
+        Matching plural form for the provided number.
+    """
     if value == 1:
         return forms[0]
     if value % 10 in {2, 3, 4} and value % 100 not in {12, 13, 14}:
@@ -181,6 +223,14 @@ def choose_plural_form(value: int, forms: tuple[str, str, str]) -> str:
 
 
 def number_under_thousand_to_words(value: int) -> str:
+    """Convert a number below one thousand into Polish words.
+
+    Args:
+        value: Integer in the range `0-999`.
+
+    Returns:
+        Textual representation of the number in Polish.
+    """
     words: list[str] = []
     hundreds = value // 100
     remainder = value % 100
@@ -200,6 +250,14 @@ def number_under_thousand_to_words(value: int) -> str:
 
 
 def integer_to_polish_words(value: int) -> str:
+    """Convert a non-negative integer into Polish words.
+
+    Args:
+        value: Integer value to convert.
+
+    Returns:
+        Textual representation of the number in Polish.
+    """
     if value == 0:
         return ONES[0]
 
@@ -219,6 +277,14 @@ def integer_to_polish_words(value: int) -> str:
 
 
 def amount_to_words(value: Decimal) -> str:
+    """Convert a decimal money value into Polish invoice wording.
+
+    Args:
+        value: Monetary value to convert.
+
+    Returns:
+        Textual amount with grosze formatted as `/100`.
+    """
     quantized = quantize_money(value)
     integer_part = int(quantized)
     grosze = int((quantized - Decimal(integer_part)) * 100)
@@ -227,6 +293,15 @@ def amount_to_words(value: Decimal) -> str:
 
 
 def build_invoice_data(period: Period, amount: Decimal) -> InvoiceData:
+    """Build invoice fields derived from the target period and amount.
+
+    Args:
+        period: Billing period for the invoice.
+        amount: Invoice total amount.
+
+    Returns:
+        Prepared invoice data ready for PDF rendering.
+    """
     issue_date = last_day_of_month(period)
     due_date = issue_date + timedelta(days=14)
     issue_date_text = issue_date.isoformat()
@@ -241,6 +316,14 @@ def build_invoice_data(period: Period, amount: Decimal) -> InvoiceData:
 
 
 def resolve_invoice_font_paths() -> tuple[Path, Path]:
+    """Resolve the first supported regular and bold TTF font pair.
+
+    Returns:
+        Tuple containing paths to regular and bold TTF fonts.
+
+    Raises:
+        PdfGenerationError: If none of the supported platform font pairs exist.
+    """
     for regular_path, bold_path in FONT_CANDIDATES:
         if regular_path.exists() and bold_path.exists():
             return regular_path, bold_path
@@ -249,6 +332,12 @@ def resolve_invoice_font_paths() -> tuple[Path, Path]:
 
 
 def register_invoice_fonts(pdfmetrics: PdfMetricsLike, tt_font: TTFontFactory) -> None:
+    """Register invoice fonts with ReportLab if needed.
+
+    Args:
+        pdfmetrics: ReportLab font registry.
+        tt_font: Factory used to construct TTF font objects.
+    """
     regular_path, bold_path = resolve_invoice_font_paths()
     if FONT_REGULAR_NAME not in pdfmetrics.getRegisteredFontNames():
         pdfmetrics.registerFont(tt_font(FONT_REGULAR_NAME, str(regular_path)))
@@ -257,6 +346,16 @@ def register_invoice_fonts(pdfmetrics: PdfMetricsLike, tt_font: TTFontFactory) -
 
 
 def draw_text(pdf_canvas: CanvasLike, x_position: float, y_position: float, text: str, font: str, size: int) -> None:
+    """Draw left-aligned text on the PDF canvas.
+
+    Args:
+        pdf_canvas: Target PDF canvas.
+        x_position: Horizontal position.
+        y_position: Vertical position.
+        text: Text to draw.
+        font: Registered font name.
+        size: Font size in points.
+    """
     pdf_canvas.setFont(font, size)
     pdf_canvas.drawString(x_position, y_position, text)
 
@@ -269,6 +368,16 @@ def draw_right_text(
     font: str,
     size: int,
 ) -> None:
+    """Draw right-aligned text on the PDF canvas.
+
+    Args:
+        pdf_canvas: Target PDF canvas.
+        x_position: Right edge position.
+        y_position: Vertical position.
+        text: Text to draw.
+        font: Registered font name.
+        size: Font size in points.
+    """
     pdf_canvas.setFont(font, size)
     pdf_canvas.drawRightString(x_position, y_position, text)
 
@@ -281,6 +390,19 @@ def draw_header(
     top: float,
     label_value_x: float,
 ) -> float:
+    """Draw the invoice header section.
+
+    Args:
+        pdf_canvas: Target PDF canvas.
+        invoice: Prepared invoice data.
+        left: Left content boundary.
+        right: Right content boundary.
+        top: Top content boundary.
+        label_value_x: X coordinate used for header values.
+
+    Returns:
+        Y coordinate of the divider line below the header.
+    """
     text_y = top
     draw_text(pdf_canvas, left, text_y, "Faktura", FONT_REGULAR_NAME, 10)
     draw_text(pdf_canvas, label_value_x, text_y, invoice.number, FONT_BOLD_NAME, 10)
@@ -302,6 +424,17 @@ def draw_header(
 
 
 def draw_parties_section(pdf_canvas: CanvasLike, left: float, divider_y: float, millimeters: float) -> float:
+    """Draw seller and buyer details.
+
+    Args:
+        pdf_canvas: Target PDF canvas.
+        left: Left content boundary.
+        divider_y: Y coordinate below the header.
+        millimeters: ReportLab millimeter unit.
+
+    Returns:
+        Top Y coordinate of the parties section.
+    """
     section_top = divider_y - 22
     buyer_left = left + 95 * millimeters
 
@@ -324,6 +457,20 @@ def draw_invoice_table(
     millimeters: float,
     content_width: float,
 ) -> float:
+    """Draw the invoice line-item table and totals.
+
+    Args:
+        pdf_canvas: Target PDF canvas.
+        invoice: Prepared invoice data.
+        left: Left content boundary.
+        right: Right content boundary.
+        section_top: Top Y coordinate of the parties section.
+        millimeters: ReportLab millimeter unit.
+        content_width: Width of the printable content area.
+
+    Returns:
+        Bottom Y coordinate of the totals row.
+    """
     table_top = section_top - 66
     header_bottom = table_top - 16
     row_bottom = header_bottom - 16
@@ -383,6 +530,19 @@ def draw_payment_section(
     top: float,
     label_value_x: float,
 ) -> float:
+    """Draw payment details for the invoice.
+
+    Args:
+        pdf_canvas: Target PDF canvas.
+        invoice: Prepared invoice data.
+        left: Left content boundary.
+        right: Right content boundary.
+        top: Top Y coordinate for the section.
+        label_value_x: X coordinate used for field values.
+
+    Returns:
+        Y coordinate of the last payment detail line.
+    """
     payment_top = top - 30
     pdf_canvas.line(left, payment_top, right, payment_top)
     payment_y = payment_top - 14
@@ -406,6 +566,19 @@ def draw_amount_section(
     top: float,
     label_value_x: float,
 ) -> float:
+    """Draw the amount due and textual amount section.
+
+    Args:
+        pdf_canvas: Target PDF canvas.
+        invoice: Prepared invoice data.
+        left: Left content boundary.
+        right: Right content boundary.
+        top: Top Y coordinate for the section.
+        label_value_x: X coordinate used for field values.
+
+    Returns:
+        Y coordinate of the last line in the section.
+    """
     amount_top = top - 20
     amount_text = format_currency_pln(invoice.amount)
     pdf_canvas.line(left, amount_top, right, amount_top)
@@ -420,12 +593,27 @@ def draw_amount_section(
 
 
 def draw_vat_note(pdf_canvas: CanvasLike, left: float, right: float, top: float) -> None:
+    """Draw the VAT exemption note.
+
+    Args:
+        pdf_canvas: Target PDF canvas.
+        left: Left content boundary.
+        right: Right content boundary.
+        top: Top Y coordinate for the note.
+    """
     vat_y = top - 21
     pdf_canvas.line(left, vat_y + 8, right, vat_y + 8)
     draw_text(pdf_canvas, left, vat_y, VAT_NOTE, FONT_REGULAR_NAME, 8)
 
 
 def draw_signature(pdf_canvas: CanvasLike, left: float, millimeters: float) -> None:
+    """Draw the issuer signature block.
+
+    Args:
+        pdf_canvas: Target PDF canvas.
+        left: Left content boundary.
+        millimeters: ReportLab millimeter unit.
+    """
     signature_y = 90
     signature_left = left
     signature_right = left + 55 * millimeters
@@ -438,6 +626,19 @@ def draw_signature(pdf_canvas: CanvasLike, left: float, millimeters: float) -> N
 
 
 def generate_invoice_pdf(invoice: InvoiceData, output_path: Path) -> Path:
+    """Generate an invoice PDF on disk.
+
+    Args:
+        invoice: Prepared invoice data to render.
+        output_path: Destination path for the generated PDF.
+
+    Returns:
+        Expanded output path of the generated PDF file.
+
+    Raises:
+        PdfGenerationError: If ReportLab or a supported font pair is not
+            available.
+    """
     canvas_factory, a4, millimeters, pdfmetrics, tt_font = ensure_reportlab_available()
     register_invoice_fonts(pdfmetrics, tt_font)
 

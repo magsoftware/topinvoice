@@ -9,6 +9,11 @@ from topinvoice.models import CliOptions, Period
 
 
 def build_parser() -> argparse.ArgumentParser:
+    """Build the CLI argument parser.
+
+    Returns:
+        Configured argument parser for the `topinvoice` command.
+    """
     parser = argparse.ArgumentParser(
         description=(
             "Log in to GuestSage, export the monthly report CSV, analyze totals and generate a PDF invoice."
@@ -55,6 +60,19 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def resolve_period(namespace: argparse.Namespace, parser: argparse.ArgumentParser) -> Period:
+    """Resolve the target billing period from parsed CLI arguments.
+
+    Args:
+        namespace: Parsed argument namespace returned by `argparse`.
+        parser: Parser used to raise user-facing validation errors.
+
+    Returns:
+        Normalized billing period.
+
+    Raises:
+        SystemExit: Raised indirectly through `parser.error()` when the user
+            passes invalid or incomplete period arguments.
+    """
     if namespace.period and (namespace.year is not None or namespace.month is not None):
         parser.error("Use either YYYY-MM or --year/--month, not both.")
 
@@ -80,6 +98,15 @@ def resolve_period(namespace: argparse.Namespace, parser: argparse.ArgumentParse
 
 
 def parse_arguments(argv: Sequence[str] | None = None) -> CliOptions:
+    """Parse command-line arguments into application options.
+
+    Args:
+        argv: Optional command-line arguments. When omitted, arguments are read
+            from the process command line.
+
+    Returns:
+        Parsed CLI options ready for pipeline execution.
+    """
     parser = build_parser()
     namespace = parser.parse_args(list(argv) if argv is not None else None)
     return CliOptions(

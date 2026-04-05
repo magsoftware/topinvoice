@@ -22,6 +22,8 @@ MONTH_LABELS = {
 
 @dataclass(frozen=True)
 class Period:
+    """Billing period used across scraping, analysis, and PDF generation."""
+
     year: int
     month: int
 
@@ -48,6 +50,8 @@ class Period:
 
 @dataclass(frozen=True)
 class CliOptions:
+    """Normalized CLI options for a single pipeline run."""
+
     period: Period
     downloads_dir: Path
     env_file: Path
@@ -58,12 +62,16 @@ class CliOptions:
 
 @dataclass(frozen=True)
 class ReportTotals:
+    """Totals extracted from the downloaded GuestSage CSV report."""
+
     last_row_total: Decimal
     data_rows_total: Decimal
 
 
 @dataclass(frozen=True)
 class InvoiceData:
+    """Prepared invoice fields ready for PDF rendering."""
+
     number: str
     issue_date: str
     sale_date: str
@@ -74,6 +82,8 @@ class InvoiceData:
 
 @dataclass(frozen=True)
 class PipelineResult:
+    """Artifacts produced by a successful pipeline execution."""
+
     csv_path: Path
     pdf_path: Path
     report_totals: ReportTotals

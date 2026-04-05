@@ -10,6 +10,14 @@ from topinvoice.models import ReportTotals
 
 
 def detect_csv_dialect(sample: str) -> type[csv.Dialect]:
+    """Detect the CSV dialect used by a report sample.
+
+    Args:
+        sample: Initial text sample read from the CSV file.
+
+    Returns:
+        Detected CSV dialect. Falls back to `csv.excel` when detection fails.
+    """
     try:
         return csv.Sniffer().sniff(sample, delimiters=",;")
     except csv.Error:
@@ -17,6 +25,17 @@ def detect_csv_dialect(sample: str) -> type[csv.Dialect]:
 
 
 def parse_decimal(value: str) -> Decimal:
+    """Parse a localized currency-like value into a decimal number.
+
+    Args:
+        value: Raw string value from the CSV report.
+
+    Returns:
+        Parsed decimal number.
+
+    Raises:
+        InvalidOperation: If the value does not contain a parseable number.
+    """
     cleaned = re.sub(r"[^\d,.\-]", "", value)
     if not cleaned:
         raise InvalidOperation(f"Could not parse number from: {value!r}")
@@ -38,6 +57,18 @@ def parse_decimal(value: str) -> Decimal:
 
 
 def analyze_report_csv(csv_path: Path) -> ReportTotals:
+    """Extract totals from the downloaded CSV report.
+
+    Args:
+        csv_path: Path to the report CSV file.
+
+    Returns:
+        Totals containing the last row amount and the sum of preceding data rows.
+
+    Raises:
+        CsvAnalysisError: If the file cannot be read or does not contain enough
+            numeric rows.
+    """
     try:
         with csv_path.open("r", encoding="utf-8-sig", newline="") as handle:
             sample = handle.read(4096)
@@ -62,6 +93,14 @@ def analyze_report_csv(csv_path: Path) -> ReportTotals:
 
 
 def format_decimal_output(value: Decimal) -> str:
+    """Format a decimal value without insignificant trailing zeros.
+
+    Args:
+        value: Decimal value to format.
+
+    Returns:
+        Human-readable decimal string.
+    """
     normalized = format(value.normalize(), "f")
     if "." in normalized:
         normalized = normalized.rstrip("0").rstrip(".")
@@ -70,4 +109,12 @@ def format_decimal_output(value: Decimal) -> str:
 
 
 def quantize_money(value: Decimal) -> Decimal:
+    """Round a money value to two decimal places.
+
+    Args:
+        value: Decimal value to quantize.
+
+    Returns:
+        Decimal rounded using half-up monetary rounding.
+    """
     return value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
