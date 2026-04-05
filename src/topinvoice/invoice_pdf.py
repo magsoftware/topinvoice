@@ -29,8 +29,24 @@ SERVICE_DESCRIPTION = "Najem lokalu przy ul. Topolowej 8/15 w Krakowie."
 VAT_NOTE = "Sprzedawca podmiotowo zwolniony z podatku VAT"
 FONT_REGULAR_NAME = "InvoiceArial"
 FONT_BOLD_NAME = "InvoiceArialBold"
-FONT_REGULAR_PATH = Path("/System/Library/Fonts/Supplemental/Arial.ttf")
-FONT_BOLD_PATH = Path("/System/Library/Fonts/Supplemental/Arial Bold.ttf")
+FONT_CANDIDATES = (
+    (
+        Path("/System/Library/Fonts/Supplemental/Arial.ttf"),
+        Path("/System/Library/Fonts/Supplemental/Arial Bold.ttf"),
+    ),
+    (
+        Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"),
+        Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),
+    ),
+    (
+        Path("/usr/share/fonts/truetype/liberation2/LiberationSans-Regular.ttf"),
+        Path("/usr/share/fonts/truetype/liberation2/LiberationSans-Bold.ttf"),
+    ),
+    (
+        Path("C:/Windows/Fonts/arial.ttf"),
+        Path("C:/Windows/Fonts/arialbd.ttf"),
+    ),
+)
 
 ONES = (
     "zero",
@@ -224,11 +240,20 @@ def build_invoice_data(period: Period, amount: Decimal) -> InvoiceData:
     )
 
 
+def resolve_invoice_font_paths() -> tuple[Path, Path]:
+    for regular_path, bold_path in FONT_CANDIDATES:
+        if regular_path.exists() and bold_path.exists():
+            return regular_path, bold_path
+
+    raise PdfGenerationError("Could not find a supported TTF font pair for invoice PDF generation.")
+
+
 def register_invoice_fonts(pdfmetrics: PdfMetricsLike, tt_font: TTFontFactory) -> None:
+    regular_path, bold_path = resolve_invoice_font_paths()
     if FONT_REGULAR_NAME not in pdfmetrics.getRegisteredFontNames():
-        pdfmetrics.registerFont(tt_font(FONT_REGULAR_NAME, str(FONT_REGULAR_PATH)))
+        pdfmetrics.registerFont(tt_font(FONT_REGULAR_NAME, str(regular_path)))
     if FONT_BOLD_NAME not in pdfmetrics.getRegisteredFontNames():
-        pdfmetrics.registerFont(tt_font(FONT_BOLD_NAME, str(FONT_BOLD_PATH)))
+        pdfmetrics.registerFont(tt_font(FONT_BOLD_NAME, str(bold_path)))
 
 
 def draw_text(pdf_canvas: CanvasLike, x_position: float, y_position: float, text: str, font: str, size: int) -> None:

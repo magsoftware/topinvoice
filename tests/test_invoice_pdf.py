@@ -10,6 +10,7 @@ import pytest
 
 from topinvoice.errors import PdfGenerationError
 from topinvoice.invoice_pdf import (
+    FONT_CANDIDATES,
     amount_to_words,
     build_invoice_data,
     choose_plural_form,
@@ -20,6 +21,7 @@ from topinvoice.invoice_pdf import (
     last_day_of_month,
     number_under_thousand_to_words,
     register_invoice_fonts,
+    resolve_invoice_font_paths,
 )
 from topinvoice.models import Period
 
@@ -61,6 +63,25 @@ def test_build_invoice_data_uses_last_day_of_month() -> None:
     assert invoice.issue_date == "2026-02-28"
     assert invoice.sale_date == "2026-02-28"
     assert invoice.due_date == "2026-03-14"
+
+
+def test_resolve_invoice_font_paths_returns_first_existing_pair(monkeypatch: pytest.MonkeyPatch) -> None:
+    first_regular, first_bold = FONT_CANDIDATES[0]
+    second_regular, second_bold = FONT_CANDIDATES[1]
+
+    def fake_exists(path: Path) -> bool:
+        return path in {second_regular, second_bold}
+
+    monkeypatch.setattr(Path, "exists", fake_exists)
+
+    assert resolve_invoice_font_paths() == (second_regular, second_bold)
+
+
+def test_resolve_invoice_font_paths_raises_when_no_supported_font_exists(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(Path, "exists", lambda self: False)
+
+    with pytest.raises(PdfGenerationError, match="Could not find a supported TTF font pair"):
+        resolve_invoice_font_paths()
 
 
 def test_generate_invoice_pdf_creates_file_and_registers_fonts_twice(tmp_path: Path) -> None:
