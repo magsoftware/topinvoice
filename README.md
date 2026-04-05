@@ -112,8 +112,4 @@ uv run mypy
 
 ## Output
 
-CLI wypisuje dwie liczby:
-1. wartość z ostatniego wiersza CSV
-2. sumę wszystkich wierszy danych
-
 PDF faktury zapisuje domyślnie jako `./YYYY-MM-1.pdf`.
