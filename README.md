@@ -1,15 +1,15 @@
 # TopInvoice
 
-CLI do pobrania raportu miesięcznego z GuestSage, analizy CSV i wygenerowania PDF faktury.
+CLI for downloading a monthly report from GuestSage, analyzing the CSV, and generating an invoice PDF.
 
 ## Pipeline
 
-1. `scrape` - logowanie do GuestSage i ustawienie filtrów raportu
-2. `download csv` - eksport pliku CSV do wybranego katalogu
-3. `analyze csv` - odczyt wartości końcowej i sumy wierszy danych
-4. `generate pdf` - wygenerowanie faktury PDF dla wskazanego miesiąca
+1. `scrape` - log in to GuestSage and set the report filters
+2. `download csv` - export the CSV file to the selected directory
+3. `analyze csv` - read the final value and the sum of all data rows
+4. `generate pdf` - generate an invoice PDF for the selected month
 
-## Struktura projektu
+## Project Structure
 
 ```text
 src/topinvoice/
@@ -47,7 +47,7 @@ uv sync --extra dev
 cp .env.example .env
 ```
 
-Alternatywnie przez HTTPS:
+Alternatively, via HTTPS:
 
 ```bash
 git clone https://github.com/magsoftware/topinvoice.git
@@ -57,20 +57,20 @@ uv sync --extra dev
 cp .env.example .env
 ```
 
-Uzupełnij `.env`:
+Fill in `.env`:
 
 ```dotenv
-GUESTSAGE_LOGIN=twoj-login
-GUESTSAGE_PASSWORD=twoje-haslo
+GUESTSAGE_LOGIN=your-login
+GUESTSAGE_PASSWORD=your-password
 ```
 
-Zainstaluj przeglądarki Playwright:
+Install Playwright browsers:
 
 ```bash
 uv run playwright install chromium
 ```
 
-Sprawdzenie instalacji:
+Verify the installation:
 
 ```bash
 uv run topinvoice --help
@@ -79,7 +79,7 @@ uv run ruff check .
 uv run mypy
 ```
 
-## Setup W Istniejącym Katalogu
+## Setup In An Existing Directory
 
 ```bash
 uv python install 3.14
@@ -87,7 +87,7 @@ uv sync --extra dev
 cp .env.example .env
 ```
 
-## Uruchomienie
+## Running
 
 ```bash
 uv run topinvoice 2026-03
@@ -96,7 +96,7 @@ uv run python -m topinvoice 2026-03 --headless
 uv run topinvoice 2026-03 --pdf-output invoices/2026-03.pdf
 ```
 
-Pomoc:
+Help:
 
 ```bash
 uv run topinvoice --help
@@ -112,4 +112,4 @@ uv run mypy
 
 ## Output
 
-PDF faktury zapisuje domyślnie jako `./YYYY-MM-1.pdf`.
+The invoice PDF is saved by default as `./YYYY-MM-1.pdf`.

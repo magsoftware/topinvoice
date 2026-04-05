@@ -1,42 +1,42 @@
 # DEVELOP
 
-## Cel projektu
+## Project Goal
 
-Projekt automatyzuje prosty pipeline rozliczeniowy dla apartamentu `Topolowa 15`:
+The project automates a simple billing pipeline for the `Topolowa 15` apartment:
 
-1. pobranie miesięcznego raportu z GuestSage,
-2. zapis CSV,
-3. analiza kwot,
-4. wygenerowanie faktury PDF.
+1. download the monthly report from GuestSage,
+2. save the CSV,
+3. analyze the amounts,
+4. generate the invoice PDF.
 
-## Architektura
+## Architecture
 
-Projekt jest podzielony na małe moduły według odpowiedzialności:
+The project is split into small modules by responsibility:
 
-- `cli.py` - wejście z linii poleceń i walidacja argumentów,
-- `config.py` - odczyt `.env` i przygotowanie poświadczeń,
-- `scraping.py` - integracja z GuestSage i eksport CSV,
-- `csv_analysis.py` - parser i analiza pliku CSV,
-- `invoice_pdf.py` - model faktury i generator PDF,
-- `pipeline.py` - orkiestracja całego przepływu,
-- `main.py` - uruchomienie aplikacji CLI.
+- `cli.py` - command-line entrypoint and argument validation,
+- `config.py` - read `.env` and prepare credentials,
+- `scraping.py` - GuestSage integration and CSV export,
+- `csv_analysis.py` - CSV parsing and analysis,
+- `invoice_pdf.py` - invoice model and PDF generator,
+- `pipeline.py` - orchestration of the full flow,
+- `main.py` - CLI application entrypoint.
 
-## Testy
+## Tests
 
-Testy są jednostkowe i deterministyczne. Integracje z Playwright i ReportLab są testowane przez fakes albo przez generację plików tymczasowych.
+The tests are unit-level and deterministic. Playwright and ReportLab integrations are tested with fakes or by generating temporary files.
 
-Docelowy standard:
+Target standard:
 
-- `pytest` z coverage `100%`,
-- `ruff` dla lintingu,
+- `pytest` with `100%` coverage,
+- `ruff` for linting,
 - `mypy --strict`.
 
-## Konwencje
+## Conventions
 
-Kod musi być zgodny z zasadami z `.ai/coding-style.md`:
+The code must follow the rules from `.ai/coding-style.md`:
 
-- jawne typy,
-- brak `print`,
-- małe funkcje,
-- importy absolutne,
-- brak nieużywanego kodu.
+- explicit types,
+- no `print`,
+- small functions,
+- absolute imports,
+- no unused code.
