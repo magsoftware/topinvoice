@@ -1,0 +1,69 @@
+[project]
+name = "topinvoice"
+version = "0.1.0"
+description = "GuestSage monthly report scraper and invoice generator"
+readme = "README.md"
+authors = [
+    { name = "Marek Gmyrek" },
+]
+requires-python = ">=3.14"
+dependencies = [
+    "playwright>=1.58.0,<2",
+    "python-dotenv>=1.1.1,<2",
+    "reportlab>=4.4.10,<5",
+]
+
+[project.optional-dependencies]
+dev = [
+    "mypy>=1.18.2",
+    "pytest>=8.4.2",
+    "pytest-cov>=7.0.0",
+    "ruff>=0.14.0",
+]
+
+[project.scripts]
+topinvoice = "topinvoice.main:main"
+
+[build-system]
+requires = ["setuptools>=80.9.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+addopts = "--cov=src/topinvoice --cov-report=term-missing --cov-fail-under=100"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["src/topinvoice"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py314"
+
+[tool.ruff.lint]
+select = [
+    "B",
+    "C90",
+    "E",
+    "F",
+    "I",
+    "UP",
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.mypy]
+python_version = "3.14"
+files = ["src", "tests"]
+strict = true
+warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = [
+    "reportlab.*",
+]
+ignore_missing_imports = true
