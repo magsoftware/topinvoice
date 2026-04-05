@@ -85,6 +85,36 @@ jobs:
       - name: Run pytest
         run: uv run pytest
 
+  security-audit:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --extra dev --frozen
+
+      - name: Export locked dependencies for pip-audit
+        run: uv pip freeze > requirements.txt
+
+      - name: Run pip-audit
+        uses: pypa/gh-action-pip-audit@v1.1.0
+        with:
+          inputs: requirements.txt
+          require-hashes: false
+
   summary:
     name: Workflow Summary
     runs-on: ubuntu-latest
@@ -93,6 +123,7 @@ jobs:
       - lint
       - typecheck
       - test
+      - security-audit
     steps:
       - name: Generate summary
         run: |
@@ -107,3 +138,4 @@ jobs:
           echo "| Ruff | ${{ needs.lint.result }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Mypy | ${{ needs.typecheck.result }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| Pytest | ${{ needs.test.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Dependency Audit | ${{ needs.security-audit.result }} |" >> "$GITHUB_STEP_SUMMARY"
