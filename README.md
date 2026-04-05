@@ -39,14 +39,10 @@ tests/
 
 ## Setup
 
-Przykład dla repozytorium hostowanego pod `github.com/magsoftware`.
-Jeśli nazwa repo jest inna, podmień `topinvoice` w komendzie `git clone`.
-
 ```bash
 git clone git@github.com:magsoftware/topinvoice.git
 cd topinvoice
 uv python install 3.14
-uv python pin 3.14
 uv sync --extra dev
 cp .env.example .env
 ```
@@ -56,6 +52,9 @@ Alternatywnie przez HTTPS:
 ```bash
 git clone https://github.com/magsoftware/topinvoice.git
 cd topinvoice
+uv python install 3.14
+uv sync --extra dev
+cp .env.example .env
 ```
 
 Uzupełnij `.env`:
@@ -80,14 +79,10 @@ uv run ruff check .
 uv run mypy
 ```
 
-Projekt nie używa `requirements.txt`.
-Źródłem zależności jest [pyproject.toml](/Users/marek/repos/magsoftware/topolowa-invoice/pyproject.toml), a stan środowiska jest zamknięty w [uv.lock](/Users/marek/repos/magsoftware/topolowa-invoice/uv.lock).
-
 ## Setup W Istniejącym Katalogu
 
 ```bash
 uv python install 3.14
-uv python pin 3.14
 uv sync --extra dev
 cp .env.example .env
 ```
