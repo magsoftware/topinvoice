@@ -101,12 +101,14 @@ jobs:
           secure: true
           username: ${{ secrets.SMTP_USERNAME }}
           password: ${{ secrets.SMTP_PASSWORD }}
-          subject: TopInvoice PDF ${{ steps.period.outputs.period }}
+          subject: Faktura Topolowa 8 m 15 - ${{ steps.period.outputs.period }}
           to: marek.gmyrek@gmail.com
           from: ${{ secrets.MAIL_FROM || secrets.SMTP_USERNAME }}
           body: |
-            W zalaczniku faktura PDF za okres ${{ steps.period.outputs.period }}.
+            W załączniku faktura PDF za okres ${{ steps.period.outputs.period }}.
 
+            Pozdrawiam,
+            ---
             Workflow: ${{ github.workflow }}
             Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           attachments: ${{ steps.period.outputs.pdf_path }}
