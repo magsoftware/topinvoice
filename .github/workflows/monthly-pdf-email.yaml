@@ -1,0 +1,112 @@
+name: Monthly PDF Email
+
+on:
+  workflow_dispatch:
+    inputs:
+      year:
+        description: "Invoice year in YYYY format. Leave empty to use the previous month."
+        required: false
+        type: string
+      month:
+        description: "Invoice month in 1-12 format. Leave empty to use the previous month."
+        required: false
+        type: string
+  schedule:
+    - cron: "0 6 6 * *"
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.14"
+
+jobs:
+  build-and-send:
+    name: Generate PDF And Send Email
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GUESTSAGE_LOGIN: ${{ secrets.GUESTSAGE_LOGIN }}
+      GUESTSAGE_PASSWORD: ${{ secrets.GUESTSAGE_PASSWORD }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Resolve invoice period
+        id: period
+        env:
+          INPUT_YEAR: ${{ github.event.inputs.year }}
+          INPUT_MONTH: ${{ github.event.inputs.month }}
+        run: |
+          python3 <<'PY'
+          import os
+          from datetime import datetime, timezone
+
+          input_year = (os.environ.get("INPUT_YEAR") or "").strip()
+          input_month = (os.environ.get("INPUT_MONTH") or "").strip()
+
+          if bool(input_year) ^ bool(input_month):
+              raise SystemExit("Provide both year and month, or leave both empty.")
+
+          if input_year and input_month:
+              year = int(input_year)
+              month = int(input_month)
+              if month < 1 or month > 12:
+                  raise SystemExit("Month input must be between 1 and 12.")
+          else:
+              today = datetime.now(timezone.utc).date()
+              year = today.year
+              month = today.month - 1
+              if month == 0:
+                  year -= 1
+                  month = 12
+
+          token = f"{year:04d}-{month:02d}"
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+              handle.write(f"year={year}\n")
+              handle.write(f"month={month}\n")
+              handle.write(f"period={token}\n")
+              handle.write(f"pdf_path=out/topinvoice-{token}.pdf\n")
+          PY
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Install Playwright browser
+        run: uv run playwright install --with-deps chromium
+
+      - name: Generate PDF
+        run: |
+          mkdir -p out
+          uv run topinvoice "${{ steps.period.outputs.period }}" \
+            --headless \
+            --pdf-output "${{ steps.period.outputs.pdf_path }}"
+
+      - name: Send PDF by email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.SMTP_HOST }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          secure: true
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: TopInvoice PDF ${{ steps.period.outputs.period }}
+          to: marek.gmyrek@gmail.com
+          from: ${{ secrets.MAIL_FROM || secrets.SMTP_USERNAME }}
+          body: |
+            W zalaczniku faktura PDF za okres ${{ steps.period.outputs.period }}.
+
+            Workflow: ${{ github.workflow }}
+            Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          attachments: ${{ steps.period.outputs.pdf_path }}
