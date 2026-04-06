@@ -12,7 +12,7 @@ on:
         required: false
         type: string
   schedule:
-    - cron: "0 6 6 * *"
+    - cron: "47 7 6 * *" # Runs on the 6th day of every month at 07:47 UTC (09:47 in Warsaw during DST).
 
 permissions:
   contents: read
