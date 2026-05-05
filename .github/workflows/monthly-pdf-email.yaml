@@ -19,6 +19,7 @@ permissions:
 
 env:
   PYTHON_VERSION: "3.14"
+  MAIL_TO: "marek.gmyrek@gmail.com"
 
 jobs:
   build-and-send:
@@ -80,6 +81,36 @@ jobs:
               handle.write(f"pdf_path=out/topinvoice-{token}.pdf\n")
           PY
 
+      - name: Log invoice period
+        run: |
+          echo "::notice title=Invoice period::${{ steps.period.outputs.period }}"
+          echo "Resolved invoice year: ${{ steps.period.outputs.year }}"
+          echo "Resolved invoice month: ${{ steps.period.outputs.month }}"
+          echo "PDF output path: ${{ steps.period.outputs.pdf_path }}"
+
+      - name: Check email configuration
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+        run: |
+          set -euo pipefail
+
+          missing=0
+          for name in SMTP_HOST SMTP_PORT SMTP_USERNAME SMTP_PASSWORD; do
+            if [ -z "${!name:-}" ]; then
+              echo "::error title=Missing secret::$name is not configured."
+              missing=1
+            fi
+          done
+
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+          echo "SMTP configuration is present."
+
       - name: Install dependencies
         run: uv sync --frozen
 
@@ -88,12 +119,51 @@ jobs:
 
       - name: Generate PDF
         run: |
+          set -euo pipefail
+
           mkdir -p out
+          echo "Generating invoice PDF for period ${{ steps.period.outputs.period }}..."
           uv run topinvoice "${{ steps.period.outputs.period }}" \
             --headless \
             --pdf-output "${{ steps.period.outputs.pdf_path }}"
 
+      - name: Verify generated PDF
+        id: pdf
+        run: |
+          set -euo pipefail
+
+          pdf_path="${{ steps.period.outputs.pdf_path }}"
+
+          if [ ! -s "$pdf_path" ]; then
+            echo "::error title=PDF not found::Expected non-empty PDF at $pdf_path."
+            exit 1
+          fi
+
+          pdf_size="$(stat -c%s "$pdf_path")"
+          pdf_sha256="$(sha256sum "$pdf_path" | awk '{print $1}')"
+
+          echo "Generated PDF:"
+          ls -lh "$pdf_path"
+          file "$pdf_path"
+          echo "SHA256: $pdf_sha256"
+
+          {
+            echo "size=$pdf_size"
+            echo "sha256=$pdf_sha256"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload PDF artifact
+        if: ${{ always() && steps.period.outputs.pdf_path != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: topinvoice-${{ steps.period.outputs.period }}-pdf
+          path: ${{ steps.period.outputs.pdf_path }}
+          if-no-files-found: warn
+          retention-days: 90
+
       - name: Send PDF by email
+        id: send-email
+        continue-on-error: true
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: ${{ secrets.SMTP_HOST }}
@@ -102,7 +172,7 @@ jobs:
           username: ${{ secrets.SMTP_USERNAME }}
           password: ${{ secrets.SMTP_PASSWORD }}
           subject: Faktura Topolowa 8 m 15 - ${{ steps.period.outputs.period }}
-          to: marek.gmyrek@gmail.com
+          to: ${{ env.MAIL_TO }}
           from: ${{ secrets.MAIL_FROM || secrets.SMTP_USERNAME }}
           body: |
             W załączniku faktura PDF za okres ${{ steps.period.outputs.period }}.
@@ -112,3 +182,40 @@ jobs:
             Workflow: ${{ github.workflow }}
             Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           attachments: ${{ steps.period.outputs.pdf_path }}
+
+      - name: Write workflow summary
+        if: always()
+        run: |
+          {
+            echo "## Monthly PDF Email"
+            echo ""
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            echo "| Event | ${{ github.event_name }} |"
+            echo "| Ref | ${{ github.ref_name }} |"
+            echo "| Run | https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }} |"
+            echo "| Period | ${{ steps.period.outputs.period || 'not resolved' }} |"
+            echo "| PDF path | ${{ steps.period.outputs.pdf_path || 'not resolved' }} |"
+            echo "| PDF size | ${{ steps.pdf.outputs.size || 'not available' }} bytes |"
+            echo "| PDF SHA256 | ${{ steps.pdf.outputs.sha256 || 'not available' }} |"
+            echo "| Artifact | topinvoice-${{ steps.period.outputs.period || 'unknown' }}-pdf |"
+            echo "| Email recipient | ${{ env.MAIL_TO }} |"
+            echo "| Email status | ${{ steps.send-email.outcome || 'not run' }} |"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          case "${{ steps.send-email.outcome }}" in
+            success)
+              echo "::notice title=Email sent::Invoice PDF was sent to ${{ env.MAIL_TO }}."
+              ;;
+            failure)
+              echo "::error title=Email failed::Invoice PDF was generated, but sending it to ${{ env.MAIL_TO }} failed."
+              ;;
+            *)
+              echo "::warning title=Email not sent::Email step did not complete. Check earlier workflow logs."
+              ;;
+          esac
+
+      - name: Fail when email was not sent
+        if: ${{ always() && steps.send-email.outcome == 'failure' }}
+        run: exit 1
