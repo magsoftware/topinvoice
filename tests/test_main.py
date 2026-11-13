@@ -15,8 +15,7 @@ def test_main_returns_success_without_printing_output(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    monkeypatch.setattr("topinvoice.main.parse_arguments", lambda argv: object())
-    monkeypatch.setattr("topinvoice.main.run_pipeline", lambda options: object())
+    monkeypatch.setattr("topinvoice.main.parse_command", lambda argv: types.SimpleNamespace(run=lambda: None))
 
     exit_code = main([])
 
@@ -28,10 +27,9 @@ def test_main_returns_error_code_for_application_error(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    monkeypatch.setattr("topinvoice.main.parse_arguments", lambda argv: object())
     monkeypatch.setattr(
-        "topinvoice.main.run_pipeline",
-        lambda options: (_ for _ in ()).throw(TopinvoiceError("boom")),
+        "topinvoice.main.parse_command",
+        lambda argv: types.SimpleNamespace(run=lambda: (_ for _ in ()).throw(TopinvoiceError("boom"))),
     )
 
     exit_code = main([])

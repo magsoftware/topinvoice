@@ -1,6 +1,6 @@
 [project]
 name = "topinvoice"
-version = "0.1.0"
+version = "0.2.0"
 description = "GuestSage monthly report scraper and invoice generator"
 readme = "README.md"
 authors = [

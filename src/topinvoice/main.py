@@ -2,10 +2,9 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from topinvoice.cli import parse_arguments
+from topinvoice.cli import parse_command
 from topinvoice.errors import TopinvoiceError
 from topinvoice.logging import configure_logging, get_logger
-from topinvoice.pipeline import run_pipeline
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -23,8 +22,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     logger = get_logger()
 
     try:
-        options = parse_arguments(argv)
-        run_pipeline(options)
+        command = parse_command(argv)
+        command.run()
     except TopinvoiceError as error:
         logger.error("%s", error)
         return 1

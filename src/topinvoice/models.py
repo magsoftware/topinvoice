@@ -61,6 +61,15 @@ class CliOptions:
 
 
 @dataclass(frozen=True)
+class ManualCliOptions:
+    """Options for generating an invoice without downloading a report."""
+
+    period: Period
+    amount: Decimal
+    pdf_output: Path | None
+
+
+@dataclass(frozen=True)
 class ReportTotals:
     """Totals extracted from the downloaded GuestSage CSV report."""
 

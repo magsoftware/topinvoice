@@ -6,7 +6,7 @@ from typing import Protocol
 from topinvoice.config import Config, load_config
 from topinvoice.csv_analysis import analyze_report_csv
 from topinvoice.invoice_pdf import build_invoice_data, generate_invoice_pdf
-from topinvoice.models import CliOptions, Period, PipelineResult
+from topinvoice.models import CliOptions, ManualCliOptions, Period, PipelineResult
 from topinvoice.scraping import GuestSageScraper
 
 
@@ -62,3 +62,10 @@ def run_pipeline(options: CliOptions, scraper: MonthlyReportScraper | None = Non
     pdf_path = generate_invoice_pdf(invoice, resolve_pdf_output_path(options))
 
     return PipelineResult(csv_path=csv_path, pdf_path=pdf_path, report_totals=report_totals)
+
+
+def run_manual_invoice(options: ManualCliOptions) -> Path:
+    """Generate an invoice from a supplied amount without accessing GuestSage."""
+    invoice = build_invoice_data(options.period, options.amount)
+    output_path = options.pdf_output if options.pdf_output is not None else options.period.default_invoice_path
+    return generate_invoice_pdf(invoice, output_path)

@@ -94,6 +94,8 @@ uv run topinvoice 2026-03
 uv run topinvoice --year 2026 --month 3
 uv run python -m topinvoice 2026-03 --headless
 uv run topinvoice 2026-03 --pdf-output invoices/2026-03.pdf
+uv run topinvoice manual --amount 2615.31
+uv run topinvoice manual --amount 2615.31 --period 2026-03 --pdf-output invoices/2026-03.pdf
 ```
 
 Help:
@@ -113,3 +115,7 @@ uv run mypy
 ## Output
 
 The invoice PDF is saved by default as `./YYYY-MM-1.pdf`.
+
+The `manual` command generates the same invoice from a supplied PLN amount without GuestSage,
+CSV, or credentials. If `--period` is omitted, it uses the previous calendar month.
+The issue and sale dates are the last day of that month, and the payment due date is 14 days later.
